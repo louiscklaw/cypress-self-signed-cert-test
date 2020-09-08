@@ -1,0 +1,23 @@
+[ req ]
+distinguished_name	= req_distinguished_name
+x509_extensions = v3_ca
+
+[ req_distinguished_name ]
+countryName             = SE
+countryName_min         = 2
+countryName_max         = 2
+stateOrProvinceName     = Somewhere
+localityName            = Local Developement
+0.organizationName      = Acme Corp
+organizationalUnitName  = Development
+commonName              = dev.local
+commonName_max          = 64
+emailAddress            = noreply@dev.se
+emailAddress_max        = 64
+
+[ v3_ca ]
+subjectAltName          = @alt_names
+
+[ alt_names ]
+DNS.1                   = dev.local
+DNS.2                   = *.dev.local

@@ -1,0 +1,62 @@
+name: Cypress Test CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Uses Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install yarn
+        run: npm install -g yarn@1.22.0
+
+      - name: Get yarn cache
+        id: yarn-cache
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v1
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Add client host
+        run: |
+          sudo echo "127.0.0.1 client.dev.local" | sudo tee -a /etc/hosts
+      - name: Start Test Environemnt
+        run: docker-compose -f docker-compose.yml up -d
+      - name: Add self signed cert as trusted cert
+        env:
+          IS_CI: 1
+        run: |
+          sh run.sh
+      - name: Setup and Run Cypress
+        uses: cypress-io/github-action@v2
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+        with:
+          wait-on: "https://client.dev.local/"
+          wait-on-timeout: 60
+          install: false
+          browser: chrome
+          headless: true
+          videoCompression: 10

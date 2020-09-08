@@ -1,0 +1,32 @@
+version: "3.7"
+
+services:
+  gateway:
+    image: nginx:1.19.2
+    container_name: gateway
+    restart: on-failure
+    command: |
+      /bin/sh -c "\
+      envsubst < /etc/nginx/nginx.template > /etc/nginx/nginx.conf && \
+      exec nginx -g 'daemon off;'"
+    environment:
+      - CLIENT_HOST=client.dev.local
+    extra_hosts:
+      - "client.dev.local:172.26.2.10"
+    volumes:
+      - ./gateway.conf:/etc/nginx/nginx.template
+      - ./index.html:/usr/share/nginx/www/index.html
+      - ./dev.local.crt:/etc/ssl/dev.local.crt
+      - ./dev.local.key:/etc/ssl/dev.local.key
+    ports:
+      - "443:443"
+    networks:
+      test-net:
+        ipv4_address: 172.26.2.10
+
+networks:
+  test-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.26.2.0/24
