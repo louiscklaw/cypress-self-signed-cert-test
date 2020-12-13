@@ -1,9 +1,9 @@
-version: "3.7"
+version: "2"
 
 services:
-  gateway:
-    image: nginx:1.19.2
-    container_name: gateway
+  www:
+    image: nginx:latest
+    container_name: www
     restart: on-failure
     command: |
       /bin/sh -c "\
@@ -15,10 +15,11 @@ services:
       - "client.dev.local:172.26.2.10"
     volumes:
       - ./gateway.conf:/etc/nginx/nginx.template
-      - ./index.html:/usr/share/nginx/www/index.html
-      - ./dev.local.crt:/etc/ssl/dev.local.crt
-      - ./dev.local.key:/etc/ssl/dev.local.key
+      - ./src:/usr/share/nginx/www/
+      - ./cert/dev.local.crt:/etc/ssl/dev.local.crt
+      - ./cert/dev.local.key:/etc/ssl/dev.local.key
     ports:
+      - "80:80"
       - "443:443"
     networks:
       test-net:
