@@ -1,5 +1,10 @@
 function addText(text) {
-  document.getElementById("root").innerText = text;
+  setTimeout(function () {
+    var span = document.createElement("span");
+    span.innerText = text;
+    span.id = "mySpan";
+    document.getElementById("root").appendChild(span);
+  }, 50);
 }
 
-addText("This should work in IE11");
+addText("Appended text");

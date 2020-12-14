@@ -19,7 +19,6 @@ services:
       - ./cert/dev.local.crt:/etc/ssl/dev.local.crt
       - ./cert/dev.local.key:/etc/ssl/dev.local.key
     ports:
-      - "80:80"
       - "443:443"
     networks:
       test-net:
