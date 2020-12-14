@@ -1,0 +1,227 @@
+name: Cypress Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      ## Cache certs
+      - name: Cache certs
+        uses: actions/cache@v2
+        with:
+          path: |
+            ./cert/*
+          key: ${{ runner.os }}-certs-${GITHUB_SHA}
+          restore-keys: |
+            ${{ runner.os }}-certs-
+
+      ## Create Certs
+      - name: Create Certificate
+        run: |
+          cd cert
+          bash create.bash
+
+      ## "Build"
+      - name: Build
+        run: |
+          echo Do build stuff here
+
+  cypress-linux-chrome:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        browser: [chrome]
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      ## Get cert cache
+      - name: Cache certs
+        uses: actions/cache@v2
+        with:
+          path: |
+            ./cert/*
+          key: ${{ runner.os }}-certs-${GITHUB_SHA}
+          restore-keys: |
+            ${{ runner.os }}-certs-
+            ## Create Certs
+
+      - name: Create Certificate
+        run: |
+          cd cert
+          bash add.bash
+
+      ## Setup NodeJS
+      - name: Uses Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      ## Install yarn globaly
+      - name: Install yarn
+        run: npm install -g yarn@1.22.0
+
+      ## Get cache for yarn
+      - name: Get yarn cache
+        id: yarn-cache
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-linux-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-linux-yarn-
+
+      ## Install dependencies
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      ## Prepare host
+      - name: Add client host
+        run: |
+          sudo echo "127.0.0.1 client.dev.local" | sudo tee -a /etc/hosts
+
+      ## Start Nginx to serve the client files
+      - name: Start Test Environemnt
+        run: docker-compose -f docker-compose.yml up -d
+
+      ## Run tests
+      - name: Setup and Run Cypress
+        uses: cypress-io/github-action@v2
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
+        with:
+          wait-on: "https://client.dev.local/"
+          wait-on-timeout: 60
+          install: false
+          browser: chrome
+          headless: true
+          videoCompression: 10
+
+  ie11:
+    needs: [build]
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        browser: [ie]
+        node-version: [14.x]
+        nuget-version: [4]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      ## Setup NodeJS
+      - name: Uses Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      ## Install yarn globaly
+      - name: Install yarn
+        run: npm install -g yarn@1.22.0
+
+      ## Get cache for yarn
+      - name: Get yarn cache
+        id: yarn-cache
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-ie11-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ie11-yarn-
+
+      ## Install all node packages needed
+      - name: Install dependencies
+        run: yarn install
+
+      ## Setup cache for nuget
+      - name: Cache IEDriver
+        uses: actions/cache@v2
+        id: iedriver-cache
+        with:
+          path: Selenium.WebDriver.IEDriver.3.150.0
+          key: IEDriver.3.150.0
+
+      ## Setup nuget
+      - name: Setup NuGet ${{ matrix.nuget-version }}
+        uses: nuget/setup-nuget@v1
+        with:
+          nuget-version: ${{ matrix.nuget-version }}
+
+      ## Install Nuget for Selenium WebDriver
+      - name: NuGet install Selenium WebDriver (if ie)
+        if: steps.iedriver-cache.outputs.cache-hit != 'true'
+        run: nuget install Selenium.WebDriver.IEDriver -Version 3.150.0
+
+      - name: Execute browser test
+        run: yarn test:e2e:${{ matrix.browser }}
+
+  safari:
+    needs: [build]
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        browser: [safari]
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      ## Setup NodeJS
+      - name: Uses Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      ## Install yarn globaly
+      - name: Install yarn
+        run: npm install -g yarn@1.22.0
+
+      ## Get cache for yarn
+      - name: Get yarn cache
+        id: yarn-cache
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-mac-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mac-yarn-
+
+      ## Install all node packages needed
+      - name: Install dependencies
+        run: yarn install
+
+      ## Make sure Safari is set to developer mode. If not we can't run tests using Safari
+      - name: Set Safari in Developer-mode
+        run: |
+          defaults write com.apple.Safari IncludeDevelopMenu YES
+          defaults write com.apple.Safari AllowRemoteAutomation 1
+          sudo safaridriver --enable
+          safaridriver -p 0 &
+
+      - name: Execute browser test
+        run: yarn test:e2e:${{ matrix.browser }}
