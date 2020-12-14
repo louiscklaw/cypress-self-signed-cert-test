@@ -86,9 +86,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ${{ steps.yarn-cache.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-linux-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-linux-yarn-
 
       ## Install dependencies
       - name: Install dependencies
@@ -207,9 +207,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ${{ steps.yarn-cache.outputs.dir }}
-          key: ${{ runner.os }}-ie11-yarn-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-mac-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-ie11-yarn-
+            ${{ runner.os }}-mac-yarn-
 
       ## Install all node packages needed
       - name: Install dependencies
